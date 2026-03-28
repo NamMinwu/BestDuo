@@ -129,7 +129,7 @@ public class PatchDetectionScheduler {
     }
 
     @Transactional
-    void registerNewPatch(String patch) {
+    public void registerNewPatch(String patch) {
         patchMetaRepository.save(PatchMeta.builder()
                 .patch(patch)
                 .releasedAt(LocalDateTime.now())
@@ -158,7 +158,7 @@ public class PatchDetectionScheduler {
      * 나머지 패치는 is_active=FALSE
      */
     @Transactional
-    void deactivateOldPatches() {
+    public void deactivateOldPatches() {
         List<PatchMeta> activePatches = patchMetaRepository.findByActiveTrueOrderByPatchDesc();
 
         if (activePatches.size() <= activePatchCount) return;

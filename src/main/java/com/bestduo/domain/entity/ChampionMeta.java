@@ -28,7 +28,7 @@ public class ChampionMeta {
     private String name;
 
     // Data Dragon 내부 키 (e.g. "MissFortune")
-    @Column(name = "key", nullable = false, length = 20)
+    @Column(name = "champion_key", nullable = false, length = 20)
     private String key;
 
     @Column(name = "image_url", length = 200)

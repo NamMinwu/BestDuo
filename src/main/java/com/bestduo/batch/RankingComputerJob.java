@@ -185,7 +185,7 @@ public class RankingComputerJob {
     }
 
     @Transactional
-    void atomicSwap(String patch, String tier) {
+    public void atomicSwap(String patch, String tier) {
         duoRankingRepository.deleteByPatchAndTier(patch, tier);
         duoRankingRepository.insertFromStaging(patch, tier);
         log.debug("[Swap] patch={} tier={} 교체 완료", patch, tier);
