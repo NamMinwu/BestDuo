@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bestduo
+    username: bestduo
+    password: bestduo
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+
+phase0:
+  target-matches: 5000
+  report-only: false
+  patch: ""   # 빈 문자열이면 전체 패치 분석
+
+logging:
+  level:
+    com.bestduo: INFO
