@@ -57,4 +57,42 @@ public class DuoPairStats {
 
     @Column(name = "is_sufficient_sample", nullable = false)
     private boolean sufficientSample;
+
+    /**
+     * 기존 집계값에 신규 게임 결과를 누적한 새 인스턴스 반환 (불변 스타일 업데이트)
+     * win_rate, ci_lower, ci_upper, pick_rate는 외부에서 재계산 후 별도 호출로 세팅 필요
+     */
+    public DuoPairStats addGames(int additionalGames, int additionalWins) {
+        return DuoPairStats.builder()
+                .patch(this.patch)
+                .tier(this.tier)
+                .adcChampionId(this.adcChampionId)
+                .supportChampionId(this.supportChampionId)
+                .games(this.games + additionalGames)
+                .wins(this.wins + additionalWins)
+                .winRate(this.winRate)
+                .pickRate(this.pickRate)
+                .ciLower(this.ciLower)
+                .ciUpper(this.ciUpper)
+                .sufficientSample(this.sufficientSample)
+                .build();
+    }
+
+    public DuoPairStats withComputedStats(double winRate, double pickRate,
+                                          double ciLower, double ciUpper,
+                                          boolean sufficientSample) {
+        return DuoPairStats.builder()
+                .patch(this.patch)
+                .tier(this.tier)
+                .adcChampionId(this.adcChampionId)
+                .supportChampionId(this.supportChampionId)
+                .games(this.games)
+                .wins(this.wins)
+                .winRate(winRate)
+                .pickRate(pickRate)
+                .ciLower(ciLower)
+                .ciUpper(ciUpper)
+                .sufficientSample(sufficientSample)
+                .build();
+    }
 }
