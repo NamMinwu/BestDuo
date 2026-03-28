@@ -28,6 +28,17 @@ riot:
     base-url: http://localhost:8089
     match-base-url: http://localhost:8089
 
+scheduler:
+  patch-detection:
+    cron: "0 */15 * * * *"
+    active-patch-count: 2
+
+collector:
+  target-matches: 100
+  matches-per-puuid: 5
+  emerald-diamond-pages: 1
+  tier-verification-chunk: 10
+
 ranking:
   min-sample-games: 5
   score-weights:
