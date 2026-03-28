@@ -28,6 +28,11 @@ riot:
     base-url: http://localhost:8089
     match-base-url: http://localhost:8089
 
+champion:
+  ddragon-version: "15.6.1"
+  ddragon-base-url: http://localhost:8089
+  sync-cron: "0 0 5 * * *"
+
 scheduler:
   patch-detection:
     cron: "0 */15 * * * *"
