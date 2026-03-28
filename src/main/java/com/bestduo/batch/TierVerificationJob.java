@@ -57,7 +57,7 @@ public class TierVerificationJob {
     // ─── Job ──────────────────────────────────────────────────────────────────
 
     @Bean
-    public Job tierVerificationJob() {
+    public Job tierVerificationBatchJob() {
         return new JobBuilder("tierVerificationJob", jobRepository)
                 .start(verifyTiersStep())
                 .build();

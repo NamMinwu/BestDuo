@@ -60,7 +60,7 @@ public class MatchCollectorJob {
     // ─── Job ──────────────────────────────────────────────────────────────────
 
     @Bean
-    public Job matchCollectorJob() {
+    public Job matchCollectorBatchJob() {
         return new JobBuilder("matchCollectorJob", jobRepository)
                 .start(collectSummonersStep())
                 .next(collectMatchesStep())

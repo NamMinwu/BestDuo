@@ -13,4 +13,8 @@ public interface DuoPairStatsRepository extends JpaRepository<DuoPairStats, DuoP
 
     Optional<DuoPairStats> findByPatchAndTierAndAdcChampionIdAndSupportChampionId(
             String patch, String tier, Integer adcChampionId, Integer supportChampionId);
+
+    List<DuoPairStats> findByPatch(String patch);
+
+    void deleteByPatchAndTier(String patch, String tier);
 }
