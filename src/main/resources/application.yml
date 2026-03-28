@@ -65,6 +65,11 @@ scheduler:
   patch-detection:
     cron: "0 */15 * * * *"
 
+champion:
+  ddragon-version: "15.6.1"   # 현재 패치. PatchDetectionScheduler가 업데이트 예정
+  ddragon-base-url: https://ddragon.leagueoflegends.com
+  sync-cron: "0 0 5 * * *"    # 매일 오전 5시 동기화
+
 logging:
   level:
     com.bestduo: INFO
