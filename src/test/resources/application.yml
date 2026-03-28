@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+
+  flyway:
+    enabled: false
+
+riot:
+  api:
+    keys: test-key-1,test-key-2
+    rate-limit-per-second: 100.0  # 테스트에서는 제한 없이
+    base-url: http://localhost:8089
+    match-base-url: http://localhost:8089
+
+ranking:
+  min-sample-games: 5
+  score-weights:
+    wilson: 0.7
+    pick-rate: 0.3
+  tier-thresholds:
+    s: 0.56
+    a: 0.52
+    b: 0.49
+    c: 0.46
