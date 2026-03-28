@@ -121,6 +121,23 @@ public class RiotApiClient {
     }
 
     /**
+     * PUUID로 소환사 정보 조회 (summonerId 획득용)
+     */
+    public String fetchSummonerByPuuid(String puuid) {
+        String key = acquireKey();
+        return krClient.get()
+                .uri("/lol/summoner/v4/summoners/by-puuid/{puuid}", puuid)
+                .header("X-Riot-Token", key)
+                .retrieve()
+                .bodyToMono(String.class)
+                .onErrorResume(WebClientResponseException.class, ex -> {
+                    log.warn("소환사 조회 실패 (puuid={}): {} {}", puuid, ex.getStatusCode(), ex.getMessage());
+                    return reactor.core.publisher.Mono.empty();
+                })
+                .block();
+    }
+
+    /**
      * 소환사 티어 확인 (BFS TierVerificationJob용)
      */
     public String fetchSummonerLeagueEntry(String encryptedSummonerId) {

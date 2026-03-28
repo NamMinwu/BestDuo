@@ -53,6 +53,13 @@ ranking:
     b: 0.49
     c: 0.46
 
+# 매치 수집 배치 설정
+collector:
+  target-matches: 10000          # 수집 목표 매치 수
+  matches-per-puuid: 20          # 소환사당 최근 매치 수
+  emerald-diamond-pages: 5       # Emerald/Diamond 페이지네이션 최대 페이지
+  tier-verification-chunk: 50    # TierVerificationJob 청크 크기
+
 # 패치 감지 스케줄 (15분마다)
 scheduler:
   patch-detection:
