@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,7 +37,7 @@ import java.util.List;
  *   0=S, 1=A, 2=B, 3=C, 4=D
  *
  * Atomic swap:
- *   같은 @Transactional 안에서 deleteByPatchAndTier → insertFromStaging
+ *   Spring Batch 스텝 트랜잭션 안에서 deleteByPatchAndTier → insertFromStaging
  *   → 라이브 읽기 트래픽이 두 테이블 사이 빈 상태를 보지 않음
  */
 @Slf4j
@@ -140,7 +139,7 @@ public class RankingComputerJob {
 
     // ─── 내부 헬퍼 ──────────────────────────────────────────────────────────
 
-    @Transactional
+    // Spring Batch tasklet 트랜잭션이 감싸고 있으므로 별도 @Transactional 불필요
     void computeAndStageRanking(String patch, String tier, List<DuoPairStats> stats) {
         // staging 초기화
         duoRankingRepository.clearStaging(patch, tier);
@@ -184,7 +183,7 @@ public class RankingComputerJob {
         log.debug("[Staging] patch={} tier={} 랭킹 {}개 적재", patch, tier, scored.size());
     }
 
-    @Transactional
+    // Spring Batch tasklet 트랜잭션이 감싸고 있으므로 별도 @Transactional 불필요
     public void atomicSwap(String patch, String tier) {
         duoRankingRepository.deleteByPatchAndTier(patch, tier);
         duoRankingRepository.insertFromStaging(patch, tier);

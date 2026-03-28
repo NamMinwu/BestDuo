@@ -1,6 +1,5 @@
 package com.bestduo.integration;
 
-import com.bestduo.batch.RankingComputerJob;
 import com.bestduo.domain.entity.DuoRanking;
 import com.bestduo.domain.repository.DuoRankingRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,27 +13,23 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * RankingComputerJob — Atomic Swap 통합 테스트
+ * DuoRankingRepository — delete/insert 시퀀스 및 조회 통합 테스트
  *
  * 테스트 전략:
- *   H2 MODE=PostgreSQL에서 native INSERT SELECT 쿼리 호환성 문제로
- *   staging INSERT는 JPA entity를 통해 우회.
- *   atomicSwap()이 deleteByPatchAndTier + insertFromStaging을 단일 트랜잭션으로
- *   처리하는 것을 검증.
+ *   H2 in-memory DB에서 실제 JPA repository 메서드를 직접 호출하여 검증.
+ *   atomicSwap의 내부 구성요소인 deleteByPatchAndTier + save를 시뮬레이션.
  *
  * 검증 항목:
- *   1. swap 후 duo_ranking에 정확히 반영
- *   2. 다른 (patch, tier) 데이터는 swap 영향 없음
- *   3. 빈 staging으로 swap하면 duo_ranking이 비워짐 (기존 데이터 교체)
+ *   1. delete → insert 시퀀스 후 duo_ranking 정확히 반영
+ *   2. deleteByPatchAndTier가 지정한 (patch, tier)만 삭제
+ *   3. 정렬 조회 (rank_position, win_rate, pick_rate)
+ *   4. 특정 조합 상세 조회 및 없는 조합 empty 반환
  */
 @SpringBootTest
 class RankingRollbackTest {
 
     @Autowired
     private DuoRankingRepository duoRankingRepository;
-
-    @Autowired
-    private RankingComputerJob rankingComputerJob;
 
     private static final String PATCH = "15.6";
     private static final String TIER = "ALL";
