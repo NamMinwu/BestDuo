@@ -16,5 +16,20 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    container_name: bestduo-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bestduo
+      DB_USERNAME: bestduo
+      DB_PASSWORD: bestduo
+      RIOT_API_KEYS: ${RIOT_API_KEYS}
+    restart: unless-stopped
+
 volumes:
   bestduo-pgdata:
