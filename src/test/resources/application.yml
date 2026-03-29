@@ -43,6 +43,7 @@ collector:
   matches-per-puuid: 5
   emerald-diamond-pages: 1
   tier-verification-chunk: 10
+  tier-refresh-days: 14
 
 ranking:
   min-sample-games: 5

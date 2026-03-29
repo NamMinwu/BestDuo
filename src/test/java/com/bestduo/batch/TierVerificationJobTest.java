@@ -37,6 +37,21 @@ class TierVerificationJobTest {
     }
 
     @Test
+    void 검증_완료_후_tierVerifiedAt_설정됨() throws Exception {
+        SummonerPool summoner = unverified("puuid-0");
+
+        when(riotApiClient.fetchSummonerByPuuid("puuid-0"))
+                .thenReturn("{\"id\":\"summoner-id-0\"}");
+        when(riotApiClient.fetchSummonerLeagueEntry("summoner-id-0"))
+                .thenReturn(leagueEntry("DIAMOND"));
+
+        SummonerPool result = processor.process(summoner);
+
+        assertThat(result.getTierVerifiedAt()).isNotNull();
+        assertThat(result.getTierVerifiedAt()).isAfterOrEqualTo(LocalDateTime.now().minusSeconds(5));
+    }
+
+    @Test
     void 에메랄드_플러스_소환사_verified_true_업데이트() throws Exception {
         SummonerPool summoner = unverified("puuid-1");
 

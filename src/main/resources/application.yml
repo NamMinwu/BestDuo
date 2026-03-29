@@ -59,6 +59,7 @@ collector:
   matches-per-puuid: 20          # 소환사당 최근 매치 수
   emerald-diamond-pages: 5       # Emerald/Diamond 페이지네이션 최대 페이지
   tier-verification-chunk: 50    # TierVerificationJob 청크 크기
+  tier-refresh-days: 14          # 티어 재검증 주기 (일) — 패치 주기(약 2주)와 동일
 
 # 패치 감지 스케줄 (15분마다)
 scheduler:
