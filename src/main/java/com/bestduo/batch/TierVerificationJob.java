@@ -20,16 +20,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * BFS로 발견된 소환사의 티어 검증 배치 잡
+ * 소환사 티어 검증 및 재검증 배치 잡
  *
- * 대상: summoner_pool WHERE is_verified = FALSE
+ * 대상:
+ *   - is_verified=FALSE : BFS로 발견됐지만 한 번도 티어 확인 안 된 소환사
+ *   - tierVerifiedAt < NOW() - tier-refresh-days : 검증은 됐지만 기간 만료 소환사
+ *
  * 처리:
  *   - LEAGUE-V4 /entries/by-summoner/{id} 조회
- *   - 솔로랭크 에메랄드+ → is_verified=TRUE, tier 업데이트
- *   - 에메랄드 미만 또는 미배치 → is_verified=TRUE, tier='UNRANKED' (수집 제외)
+ *   - 솔로랭크 에메랄드+ → is_verified=TRUE, tier 업데이트, tierVerifiedAt=NOW()
+ *   - 에메랄드 미만 또는 미배치 → is_verified=TRUE, tier='UNRANKED', tierVerifiedAt=NOW()
  *
  * 주의:
  *   - summoner_pool.puuid로 summonerId를 알 수 없음
@@ -50,6 +54,9 @@ public class TierVerificationJob {
     @Value("${collector.tier-verification-chunk:50}")
     private int chunkSize;
 
+    @Value("${collector.tier-refresh-days:14}")
+    private int tierRefreshDays;
+
     // 에메랄드 이상으로 인정할 티어 목록
     private static final List<String> ELIGIBLE_TIERS =
             List.of("EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER");
@@ -67,12 +74,13 @@ public class TierVerificationJob {
 
     @Bean
     public Step verifyTiersStep() {
-        List<SummonerPool> unverified = summonerPoolRepository.findByVerifiedFalse();
-        log.info("[TierVerificationJob] 미확인 소환사: {}명", unverified.size());
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(tierRefreshDays);
+        List<SummonerPool> targets = summonerPoolRepository.findNeedingVerification(cutoff);
+        log.info("[TierVerificationJob] 검증 대상: {}명 (미검증 + {}일 이상 경과)", targets.size(), tierRefreshDays);
 
         return new StepBuilder("verifyTiersStep", jobRepository)
                 .<SummonerPool, SummonerPool>chunk(chunkSize, transactionManager)
-                .reader(new ListItemReader<>(unverified))
+                .reader(new ListItemReader<>(targets))
                 .processor(tierVerificationProcessor())
                 .writer(tierVerificationWriter())
                 .build();
