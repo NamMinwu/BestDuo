@@ -6,11 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,7 +21,8 @@ import java.util.List;
  * 15분마다 Data Dragon 버전 API를 폴링해서 신규 패치를 감지.
  * 신규 패치 감지 시:
  *   1. patch_meta에 신규 패치 등록
- *   2. MatchCollectorJob 트리거 (새 패치 매치 수집)
+ *   2. BatchPipelineService.runPipeline() 비동기 트리거
+ *      (MatchCollector → TierVerification → DuoPairAggregator → RankingComputer)
  *   3. 최신 2개 패치만 is_active=TRUE 유지 (나머지 FALSE)
  *
  * 주의:
@@ -35,23 +31,12 @@ import java.util.List;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class PatchDetectionScheduler {
 
     private final PatchMetaRepository patchMetaRepository;
-    private final JobLauncher jobLauncher;
     private final ObjectMapper objectMapper;
-    private final Job matchCollectorJob;
-
-    public PatchDetectionScheduler(
-            PatchMetaRepository patchMetaRepository,
-            JobLauncher jobLauncher,
-            ObjectMapper objectMapper,
-            @Qualifier("matchCollectorBatchJob") Job matchCollectorJob) {
-        this.patchMetaRepository = patchMetaRepository;
-        this.jobLauncher = jobLauncher;
-        this.objectMapper = objectMapper;
-        this.matchCollectorJob = matchCollectorJob;
-    }
+    private final BatchPipelineService batchPipelineService;
 
     @Value("${scheduler.patch-detection.ddragon-url:https://ddragon.leagueoflegends.com/api/versions.json}")
     private String ddragonVersionsUrl;
@@ -83,8 +68,8 @@ public class PatchDetectionScheduler {
 
             log.info("신규 패치 감지: {}", latestPatch);
             registerNewPatch(latestPatch);
-            triggerMatchCollector(latestPatch);
             deactivateOldPatches();
+            batchPipelineService.runPipeline(latestPatch);
 
         } catch (Exception e) {
             log.error("패치 감지 중 오류: {}", e.getMessage());
@@ -136,21 +121,6 @@ public class PatchDetectionScheduler {
                 .active(true)
                 .build());
         log.info("패치 {} 등록 완료", patch);
-    }
-
-    void triggerMatchCollector(String patch) {
-        try {
-            JobParameters params = new JobParametersBuilder()
-                    .addString("patch", patch)
-                    .addLong("triggeredAt", System.currentTimeMillis())
-                    .toJobParameters();
-
-            jobLauncher.run(matchCollectorJob, params);
-            log.info("MatchCollectorJob 트리거: patch={}", patch);
-
-        } catch (Exception e) {
-            log.error("MatchCollectorJob 트리거 실패: {}", e.getMessage());
-        }
     }
 
     /**

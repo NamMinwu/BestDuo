@@ -8,27 +8,25 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.batch.core.launch.JobLauncher;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PatchDetectionSchedulerTest {
 
     @Mock private PatchMetaRepository patchMetaRepository;
-    @Mock private JobLauncher jobLauncher;
+    @Mock private BatchPipelineService batchPipelineService;
 
     private PatchDetectionScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         scheduler = new PatchDetectionScheduler(
-                patchMetaRepository, jobLauncher, new ObjectMapper(), null
+                patchMetaRepository, new ObjectMapper(), batchPipelineService
         );
         setField(scheduler, "ddragonVersionsUrl", "https://ddragon.leagueoflegends.com/api/versions.json");
         setField(scheduler, "activePatchCount", 2);
