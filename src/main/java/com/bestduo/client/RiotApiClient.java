@@ -4,6 +4,8 @@ import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.http.codec.ClientCodecConfigurer;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -49,8 +51,13 @@ public class RiotApiClient {
                         key -> RateLimiter.create(rateLimitPerSecond)
                 ));
 
-        this.krClient = WebClient.builder().baseUrl(baseUrl).build();
-        this.asiaClient = WebClient.builder().baseUrl(matchBaseUrl).build();
+        // Master+ 리그 응답이 기본 256KB를 초과 → 16MB로 확장
+        ExchangeStrategies largeBuffer = ExchangeStrategies.builder()
+                .codecs(cfg -> cfg.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .build();
+
+        this.krClient = WebClient.builder().baseUrl(baseUrl).exchangeStrategies(largeBuffer).build();
+        this.asiaClient = WebClient.builder().baseUrl(matchBaseUrl).exchangeStrategies(largeBuffer).build();
 
         log.info("RiotApiClient 초기화: {}개 키, {}req/s per key", apiKeys.size(), rateLimitPerSecond);
     }

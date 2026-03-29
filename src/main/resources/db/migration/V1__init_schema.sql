@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS duo_ranking (
     adc_champion_id       INT          NOT NULL,
     support_champion_id   INT          NOT NULL,
     score                 FLOAT        NOT NULL,
-    tier_grade            SMALLINT     NOT NULL,   -- 0=S, 1=A, 2=B, 3=C, 4=D
+    tier_grade            INTEGER      NOT NULL,   -- 0=S, 1=A, 2=B, 3=C, 4=D
     -- duo_pair_stats에서 비정규화 (sort=WIN_RATE/PICK_RATE JOIN 없이 처리)
     win_rate              FLOAT        NOT NULL,
     pick_rate             FLOAT        NOT NULL,
