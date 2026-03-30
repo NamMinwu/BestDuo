@@ -12,12 +12,6 @@ import java.util.Optional;
 
 public interface DuoRankingRepository extends JpaRepository<DuoRanking, DuoRankingId> {
 
-    List<DuoRanking> findByPatchAndTierOrderByRankPositionAsc(String patch, String tier);
-
-    List<DuoRanking> findByPatchAndTierOrderByWinRateDesc(String patch, String tier);
-
-    List<DuoRanking> findByPatchAndTierOrderByPickRateDesc(String patch, String tier);
-
     @Query("SELECT d FROM DuoRanking d WHERE d.patch = :patch AND d.tier = :tier " +
            "AND (:adcId IS NULL OR d.adcChampionId = :adcId) " +
            "AND (:supportId IS NULL OR d.supportChampionId = :supportId)")
