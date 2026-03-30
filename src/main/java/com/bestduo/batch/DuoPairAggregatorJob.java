@@ -26,6 +26,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * match_raw → duo_pair_stats 집계 배치 잡
@@ -79,11 +80,33 @@ public class DuoPairAggregatorJob {
                 .tasklet((contribution, chunkContext) -> {
                     log.info("[Step 1] 바텀 페어 집계 시작");
 
-                    var unprocessed = matchRawRepository.findAll().stream()
-                            .filter(m -> !m.isProcessed() && m.getRawJson() != null)
+                    var unprocessed = matchRawRepository.findByProcessedFalse().stream()
+                            .filter(m -> m.getRawJson() != null)
                             .toList();
 
                     log.info("[Step 1] 처리 대상 매치: {}건", unprocessed.size());
+
+                    // 1단계: 모든 매치의 ADC PUUID 추출 (루프 전)
+                    Map<String, Map<Integer, String>> matchIdToTeamAdcPuuid = new LinkedHashMap<>();
+                    Set<String> allAdcPuuids = new LinkedHashSet<>();
+                    for (var match : unprocessed) {
+                        Map<Integer, String> teamIdToAdcPuuid = extractAdcPuuids(match.getRawJson());
+                        matchIdToTeamAdcPuuid.put(match.getMatchId(), teamIdToAdcPuuid);
+                        allAdcPuuids.addAll(teamIdToAdcPuuid.values());
+                    }
+
+                    // 2단계: PUUID → tier 한 번에 조회 (N+1 방지)
+                    Map<String, String> puuidToTier = summonerPoolRepository.findAllById(allAdcPuuids)
+                            .stream()
+                            .filter(s -> s.isVerified() && s.getTier() != null
+                                    && !"UNRANKED".equals(s.getTier())
+                                    && !"UNKNOWN".equals(s.getTier()))
+                            .collect(Collectors.toMap(
+                                    s -> s.getPuuid(),
+                                    s -> s.getTier()));
+
+                    log.info("[Step 1] ADC PUUID {}개 조회 완료 (에메랄드+ 확인: {}명)",
+                            allAdcPuuids.size(), puuidToTier.size());
 
                     // 인메모리 집계: (patch, tier, adcId, suppId) → [games, wins]
                     Map<PairKey, int[]> accumulator = new LinkedHashMap<>();
@@ -92,7 +115,7 @@ public class DuoPairAggregatorJob {
 
                     for (var match : unprocessed) {
                         List<BottomPair> pairs = duoPairExtractor.extract(match.getRawJson());
-                        Map<Integer, String> teamIdToAdcPuuid = extractAdcPuuids(match.getRawJson());
+                        Map<Integer, String> teamIdToAdcPuuid = matchIdToTeamAdcPuuid.get(match.getMatchId());
 
                         for (BottomPair pair : pairs) {
                             String patch = pair.getPatch();
@@ -102,15 +125,10 @@ public class DuoPairAggregatorJob {
                             accumulate(accumulator, allKey, pair.isWin());
                             incrementPairCount(patchTierPairCount, patch + ":ALL");
 
-                            // tier-specific: ADC PUUID → summoner_pool.tier
+                            // tier-specific: Map 조회 (DB 호출 없음)
                             String adcPuuid = teamIdToAdcPuuid.get(pair.getTeamId());
                             if (adcPuuid != null) {
-                                String tier = summonerPoolRepository.findById(adcPuuid)
-                                        .map(s -> s.isVerified() && s.getTier() != null
-                                                && !"UNRANKED".equals(s.getTier())
-                                                && !"UNKNOWN".equals(s.getTier()) ? s.getTier() : null)
-                                        .orElse(null);
-
+                                String tier = puuidToTier.get(adcPuuid);
                                 if (tier != null) {
                                     PairKey tierKey = new PairKey(patch, tier, pair.getAdcChampionId(), pair.getSupportChampionId());
                                     accumulate(accumulator, tierKey, pair.isWin());
@@ -168,14 +186,9 @@ public class DuoPairAggregatorJob {
                 .tasklet((contribution, chunkContext) -> {
                     log.info("[Step 3] match_raw.processed = TRUE 업데이트");
 
-                    var unprocessed = matchRawRepository.findAll().stream()
-                            .filter(m -> !m.isProcessed())
-                            .toList();
+                    int updated = matchRawRepository.markAllProcessed();
 
-                    unprocessed.forEach(m -> m.markProcessed());
-                    matchRawRepository.saveAll(unprocessed);
-
-                    log.info("[Step 3] {}건 processed 처리 완료", unprocessed.size());
+                    log.info("[Step 3] {}건 processed 처리 완료", updated);
                     return RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
