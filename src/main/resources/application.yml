@@ -73,6 +73,9 @@ champion:
   ddragon-base-url: https://ddragon.leagueoflegends.com
   sync-cron: "0 0 5 * * *"    # 매일 오전 5시 동기화
 
+admin:
+  secret-key: ${ADMIN_SECRET_KEY:}  # 운영 시 반드시 환경변수로 설정. 빈 값이면 admin 엔드포인트 비활성화
+
 logging:
   level:
     com.bestduo: INFO
