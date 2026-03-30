@@ -7,17 +7,25 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "듀오", description = "바텀 듀오 랭킹 조회 API")
 @RestController
 @RequestMapping("/api/v1/duos")
 @RequiredArgsConstructor
 public class DuosController {
+
+    private static final Map<String, String> SORT_FIELD_MAP = Map.of(
+            "RANK", "rankPosition",
+            "WIN_RATE", "winRate",
+            "PICK_RATE", "pickRate"
+    );
 
     private final DuoRankingRepository duoRankingRepository;
 
@@ -30,8 +38,11 @@ public class DuosController {
             @Parameter(description = "티어 필터", example = "ALL")
             @RequestParam(defaultValue = "ALL") String tier,
 
-            @Parameter(description = "정렬 기준", example = "RANK")
+            @Parameter(description = "정렬 기준 (RANK | WIN_RATE | PICK_RATE)", example = "RANK")
             @RequestParam(defaultValue = "RANK") String sort,
+
+            @Parameter(description = "정렬 방향 (ASC | DESC)", example = "ASC")
+            @RequestParam(defaultValue = "ASC") String dir,
 
             @Parameter(description = "원딜 챔피언 ID 필터 (Riot champion key)", example = "222")
             @RequestParam(required = false) Integer adc,
@@ -39,11 +50,11 @@ public class DuosController {
             @Parameter(description = "서포터 챔피언 ID 필터 (Riot champion key)", example = "412")
             @RequestParam(required = false) Integer support) {
 
-        List<DuoRanking> rankings = switch (sort.toUpperCase()) {
-            case "WIN_RATE" -> duoRankingRepository.findWithChampionFilterOrderByWinRateDesc(patch, tier, adc, support);
-            case "PICK_RATE" -> duoRankingRepository.findWithChampionFilterOrderByPickRateDesc(patch, tier, adc, support);
-            default -> duoRankingRepository.findWithChampionFilterOrderByRankPositionAsc(patch, tier, adc, support);
-        };
+        String sortField = SORT_FIELD_MAP.getOrDefault(sort.toUpperCase(), "rankPosition");
+        Sort.Direction direction = "DESC".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort jpaSort = Sort.by(direction, sortField);
+
+        List<DuoRanking> rankings = duoRankingRepository.findWithChampionFilter(patch, tier, adc, support, jpaSort);
 
         List<DuoRankingResponse.DuoRankingItem> items = rankings.stream()
                 .map(DuoRankingResponse.DuoRankingItem::from)
