@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -136,7 +137,7 @@ class PatchSwitchTest {
         assertThat(patchMetaRepository.findById("15.5").orElseThrow().isActive()).isFalse();
 
         // 그러나 15.5의 duo_ranking 데이터는 여전히 조회 가능
-        var oldRankings = duoRankingRepository.findByPatchAndTierOrderByRankPositionAsc("15.5", "ALL");
+        var oldRankings = duoRankingRepository.findWithChampionFilter("15.5", "ALL", null, null, Sort.by(Sort.Direction.ASC, "rankPosition"));
         assertThat(oldRankings).hasSize(1);
         assertThat(oldRankings.get(0).getAdcChampionId()).isEqualTo(235);
     }

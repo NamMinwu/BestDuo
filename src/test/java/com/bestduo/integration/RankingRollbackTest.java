@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -54,7 +55,7 @@ class RankingRollbackTest {
         duoRankingRepository.save(ranking(PATCH, TIER, 2, 51, 99));
 
         List<DuoRanking> result = duoRankingRepository
-                .findByPatchAndTierOrderByRankPositionAsc(PATCH, TIER);
+                .findWithChampionFilter(PATCH, TIER, null, null, Sort.by(Sort.Direction.ASC, "rankPosition"));
 
         assertThat(result).hasSize(2);
         // 기존 222번 삭제됨
@@ -74,12 +75,12 @@ class RankingRollbackTest {
         duoRankingRepository.deleteByPatchAndTier(PATCH, TIER);
 
         // 15.6 ALL만 삭제
-        assertThat(duoRankingRepository.findByPatchAndTierOrderByRankPositionAsc(PATCH, TIER))
+        assertThat(duoRankingRepository.findWithChampionFilter(PATCH, TIER, null, null, Sort.by(Sort.Direction.ASC, "rankPosition")))
                 .isEmpty();
         // 다른 patch/tier는 보존
-        assertThat(duoRankingRepository.findByPatchAndTierOrderByRankPositionAsc("15.5", TIER))
+        assertThat(duoRankingRepository.findWithChampionFilter("15.5", TIER, null, null, Sort.by(Sort.Direction.ASC, "rankPosition")))
                 .hasSize(1);
-        assertThat(duoRankingRepository.findByPatchAndTierOrderByRankPositionAsc(PATCH, "DIAMOND"))
+        assertThat(duoRankingRepository.findWithChampionFilter(PATCH, "DIAMOND", null, null, Sort.by(Sort.Direction.ASC, "rankPosition")))
                 .hasSize(1);
     }
 
@@ -93,7 +94,7 @@ class RankingRollbackTest {
         duoRankingRepository.save(ranking(PATCH, TIER, 2, 2, 2));
 
         List<DuoRanking> result = duoRankingRepository
-                .findByPatchAndTierOrderByRankPositionAsc(PATCH, TIER);
+                .findWithChampionFilter(PATCH, TIER, null, null, Sort.by(Sort.Direction.ASC, "rankPosition"));
 
         assertThat(result).hasSize(3);
         assertThat(result.get(0).getRankPosition()).isEqualTo(1);
@@ -109,7 +110,7 @@ class RankingRollbackTest {
         duoRankingRepository.save(rankingWithWinRate(PATCH, TIER, 3, 222, 40, 0.55));
 
         List<DuoRanking> result = duoRankingRepository
-                .findByPatchAndTierOrderByWinRateDesc(PATCH, TIER);
+                .findWithChampionFilter(PATCH, TIER, null, null, Sort.by(Sort.Direction.DESC, "winRate"));
 
         assertThat(result).hasSize(3);
         assertThat(result.get(0).getWinRate()).isEqualTo(0.60);
@@ -125,7 +126,7 @@ class RankingRollbackTest {
         duoRankingRepository.save(rankingWithPickRate(PATCH, TIER, 3, 222, 40, 0.07));
 
         List<DuoRanking> result = duoRankingRepository
-                .findByPatchAndTierOrderByPickRateDesc(PATCH, TIER);
+                .findWithChampionFilter(PATCH, TIER, null, null, Sort.by(Sort.Direction.DESC, "pickRate"));
 
         assertThat(result).hasSize(3);
         assertThat(result.get(0).getPickRate()).isEqualTo(0.10);
