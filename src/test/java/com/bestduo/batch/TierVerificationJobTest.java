@@ -7,10 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.batch.item.ItemProcessor;
 
 import java.time.LocalDateTime;
 
@@ -28,16 +26,14 @@ class TierVerificationJobTest {
     private SummonerPoolRepository summonerPoolRepository;
 
     private TierVerificationJob job;
-    private ItemProcessor<SummonerPool, SummonerPool> processor;
 
     @BeforeEach
     void setUp() {
         job = new TierVerificationJob(null, null, riotApiClient, summonerPoolRepository, new ObjectMapper());
-        processor = job.tierVerificationProcessor();
     }
 
     @Test
-    void 검증_완료_후_tierVerifiedAt_설정됨() throws Exception {
+    void 검증_완료_후_tierVerifiedAt_설정됨() {
         SummonerPool summoner = unverified("puuid-0");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-0"))
@@ -45,14 +41,14 @@ class TierVerificationJobTest {
         when(riotApiClient.fetchSummonerLeagueEntry("summoner-id-0"))
                 .thenReturn(leagueEntry("DIAMOND"));
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTierVerifiedAt()).isNotNull();
         assertThat(result.getTierVerifiedAt()).isAfterOrEqualTo(LocalDateTime.now().minusSeconds(5));
     }
 
     @Test
-    void 에메랄드_플러스_소환사_verified_true_업데이트() throws Exception {
+    void 에메랄드_플러스_소환사_verified_true_업데이트() {
         SummonerPool summoner = unverified("puuid-1");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-1"))
@@ -60,14 +56,14 @@ class TierVerificationJobTest {
         when(riotApiClient.fetchSummonerLeagueEntry("summoner-id-1"))
                 .thenReturn(leagueEntry("DIAMOND"));
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTier()).isEqualTo("DIAMOND");
         assertThat(result.isVerified()).isTrue();
     }
 
     @Test
-    void 챌린저_소환사_verified_true() throws Exception {
+    void 챌린저_소환사_verified_true() {
         SummonerPool summoner = unverified("puuid-2");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-2"))
@@ -75,14 +71,14 @@ class TierVerificationJobTest {
         when(riotApiClient.fetchSummonerLeagueEntry("summoner-id-2"))
                 .thenReturn(leagueEntry("CHALLENGER"));
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTier()).isEqualTo("CHALLENGER");
         assertThat(result.isVerified()).isTrue();
     }
 
     @Test
-    void 솔로랭크_없으면_UNRANKED() throws Exception {
+    void 솔로랭크_없으면_UNRANKED() {
         SummonerPool summoner = unverified("puuid-3");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-3"))
@@ -91,20 +87,20 @@ class TierVerificationJobTest {
         when(riotApiClient.fetchSummonerLeagueEntry("summoner-id-3"))
                 .thenReturn("[{\"queueType\":\"RANKED_FLEX_SR\",\"tier\":\"GOLD\"}]");
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTier()).isEqualTo("UNRANKED");
         assertThat(result.isVerified()).isTrue();
     }
 
     @Test
-    void summonerId_빈값이면_UNRANKED() throws Exception {
+    void summonerId_빈값이면_UNRANKED() {
         SummonerPool summoner = unverified("puuid-4");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-4"))
                 .thenReturn("{\"id\":\"\"}");
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTier()).isEqualTo("UNRANKED");
         assertThat(result.isVerified()).isTrue();
@@ -112,26 +108,26 @@ class TierVerificationJobTest {
     }
 
     @Test
-    void API_실패시_UNRANKED_처리() throws Exception {
+    void API_실패시_UNRANKED_처리() {
         SummonerPool summoner = unverified("puuid-5");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-5"))
                 .thenThrow(new RuntimeException("API timeout"));
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTier()).isEqualTo("UNRANKED");
         assertThat(result.isVerified()).isTrue();
     }
 
     @Test
-    void 소환사정보_null이면_UNRANKED() throws Exception {
+    void 소환사정보_null이면_UNRANKED() {
         SummonerPool summoner = unverified("puuid-6");
 
         when(riotApiClient.fetchSummonerByPuuid("puuid-6"))
                 .thenReturn(null);
 
-        SummonerPool result = processor.process(summoner);
+        SummonerPool result = job.verifyTier(summoner);
 
         assertThat(result.getTier()).isEqualTo("UNRANKED");
         assertThat(result.isVerified()).isTrue();

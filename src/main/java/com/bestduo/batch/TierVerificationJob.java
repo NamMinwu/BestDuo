@@ -12,9 +12,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,7 +36,7 @@ import java.util.List;
  * 주의:
  *   - summoner_pool.puuid로 summonerId를 알 수 없음
  *   → PUUID 기반 소환사 정보 API 먼저 조회 필요
- *   - 배치 크기(chunk=50)로 DB flush 주기 조절
+ *   - chunkSize 단위로 saveAll() 일괄 저장
  */
 @Slf4j
 @Configuration
@@ -74,70 +72,75 @@ public class TierVerificationJob {
 
     @Bean
     public Step verifyTiersStep() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(tierRefreshDays);
-        List<SummonerPool> targets = summonerPoolRepository.findNeedingVerification(cutoff);
-        log.info("[TierVerificationJob] 검증 대상: {}명 (미검증 + {}일 이상 경과)", targets.size(), tierRefreshDays);
-
         return new StepBuilder("verifyTiersStep", jobRepository)
-                .<SummonerPool, SummonerPool>chunk(chunkSize, transactionManager)
-                .reader(new ListItemReader<>(targets))
-                .processor(tierVerificationProcessor())
-                .writer(tierVerificationWriter())
+                .tasklet((contribution, chunkContext) -> {
+                    // Job 실행 시점에 cutoff 계산 (앱 시작 시점이 아님)
+                    LocalDateTime cutoff = LocalDateTime.now().minusDays(tierRefreshDays);
+                    List<SummonerPool> targets = summonerPoolRepository.findNeedingVerification(cutoff);
+                    log.info("[TierVerificationJob] 검증 대상: {}명 (미검증 + {}일 이상 경과)", targets.size(), tierRefreshDays);
+
+                    int processed = 0;
+                    int eligible = 0;
+                    List<SummonerPool> batch = new java.util.ArrayList<>(chunkSize);
+
+                    for (SummonerPool summoner : targets) {
+                        SummonerPool updated = verifyTier(summoner);
+                        batch.add(updated);
+                        if (ELIGIBLE_TIERS.contains(updated.getTier())) eligible++;
+
+                        if (batch.size() >= chunkSize) {
+                            summonerPoolRepository.saveAll(batch);
+                            log.debug("[TierVerify] 배치 저장: {}명 (에메랄드+: {}명)", batch.size(),
+                                    batch.stream().filter(s -> ELIGIBLE_TIERS.contains(s.getTier())).count());
+                            batch.clear();
+                        }
+                        processed++;
+                    }
+
+                    if (!batch.isEmpty()) {
+                        summonerPoolRepository.saveAll(batch);
+                    }
+
+                    log.info("[TierVerificationJob] 완료: {}명 처리, {}명 에메랄드+", processed, eligible);
+                    return RepeatStatus.FINISHED;
+                }, transactionManager)
                 .build();
     }
 
-    // ─── Processor ────────────────────────────────────────────────────────────
+    // ─── 헬퍼 ────────────────────────────────────────────────────────────────
 
-    @Bean
-    public ItemProcessor<SummonerPool, SummonerPool> tierVerificationProcessor() {
-        return summoner -> {
-            try {
-                // 1단계: PUUID → summoner 정보 조회 (summonerId 필요)
-                String summonerJson = riotApiClient.fetchSummonerByPuuid(summoner.getPuuid());
-                if (summonerJson == null) {
-                    log.warn("[TierVerify] PUUID {} 소환사 정보 없음 → UNRANKED 처리", summoner.getPuuid());
-                    summoner.updateTier("UNRANKED");
-                    return summoner;
-                }
-
-                JsonNode summonerNode = objectMapper.readTree(summonerJson);
-                String summonerId = summonerNode.path("id").asText("");
-
-                if (summonerId.isEmpty()) {
-                    summoner.updateTier("UNRANKED");
-                    return summoner;
-                }
-
-                // 2단계: summonerId → 리그 엔트리 조회
-                String leagueJson = riotApiClient.fetchSummonerLeagueEntry(summonerId);
-                String tier = extractSoloRankTier(leagueJson);
-
-                summoner.updateTier(tier);
-                log.debug("[TierVerify] PUUID {} → tier={}", summoner.getPuuid(), tier);
-                return summoner;
-
-            } catch (Exception e) {
-                log.warn("[TierVerify] PUUID {} 처리 실패: {} → UNRANKED", summoner.getPuuid(), e.getMessage());
+    SummonerPool verifyTier(SummonerPool summoner) {
+        try {
+            // 1단계: PUUID → summoner 정보 조회 (summonerId 필요)
+            String summonerJson = riotApiClient.fetchSummonerByPuuid(summoner.getPuuid());
+            if (summonerJson == null) {
+                log.warn("[TierVerify] PUUID {} 소환사 정보 없음 → UNRANKED 처리", summoner.getPuuid());
                 summoner.updateTier("UNRANKED");
                 return summoner;
             }
-        };
+
+            JsonNode summonerNode = objectMapper.readTree(summonerJson);
+            String summonerId = summonerNode.path("id").asText("");
+
+            if (summonerId.isEmpty()) {
+                summoner.updateTier("UNRANKED");
+                return summoner;
+            }
+
+            // 2단계: summonerId → 리그 엔트리 조회
+            String leagueJson = riotApiClient.fetchSummonerLeagueEntry(summonerId);
+            String tier = extractSoloRankTier(leagueJson);
+
+            summoner.updateTier(tier);
+            log.debug("[TierVerify] PUUID {} → tier={}", summoner.getPuuid(), tier);
+            return summoner;
+
+        } catch (Exception e) {
+            log.warn("[TierVerify] PUUID {} 처리 실패: {} → UNRANKED", summoner.getPuuid(), e.getMessage());
+            summoner.updateTier("UNRANKED");
+            return summoner;
+        }
     }
-
-    // ─── Writer ───────────────────────────────────────────────────────────────
-
-    @Bean
-    public ItemWriter<SummonerPool> tierVerificationWriter() {
-        return items -> {
-            summonerPoolRepository.saveAll(items.getItems());
-            long eligible = items.getItems().stream()
-                    .filter(s -> ELIGIBLE_TIERS.contains(s.getTier()))
-                    .count();
-            log.debug("[TierVerify] 배치 저장: {}명 (에메랄드+: {}명)", items.size(), eligible);
-        };
-    }
-
-    // ─── 헬퍼 ────────────────────────────────────────────────────────────────
 
     /**
      * 리그 엔트리 JSON에서 솔로랭크 티어 추출

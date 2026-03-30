@@ -79,8 +79,8 @@ public class DuoPairAggregatorJob {
                 .tasklet((contribution, chunkContext) -> {
                     log.info("[Step 1] 바텀 페어 집계 시작");
 
-                    var unprocessed = matchRawRepository.findAll().stream()
-                            .filter(m -> !m.isProcessed() && m.getRawJson() != null)
+                    var unprocessed = matchRawRepository.findByProcessedFalse().stream()
+                            .filter(m -> m.getRawJson() != null)
                             .toList();
 
                     log.info("[Step 1] 처리 대상 매치: {}건", unprocessed.size());
@@ -168,14 +168,9 @@ public class DuoPairAggregatorJob {
                 .tasklet((contribution, chunkContext) -> {
                     log.info("[Step 3] match_raw.processed = TRUE 업데이트");
 
-                    var unprocessed = matchRawRepository.findAll().stream()
-                            .filter(m -> !m.isProcessed())
-                            .toList();
+                    int updated = matchRawRepository.markAllProcessed();
 
-                    unprocessed.forEach(m -> m.markProcessed());
-                    matchRawRepository.saveAll(unprocessed);
-
-                    log.info("[Step 3] {}건 processed 처리 완료", unprocessed.size());
+                    log.info("[Step 3] {}건 processed 처리 완료", updated);
                     return RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
