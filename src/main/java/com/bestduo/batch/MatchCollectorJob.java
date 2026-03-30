@@ -174,8 +174,8 @@ public class MatchCollectorJob {
                     log.info("[Step 3] 매치 참가자 PUUID → summoner_pool(미확인) 추가 시작");
 
                     // processed=FALSE인 매치에서 참가자 PUUID 추출
-                    List<MatchRaw> unprocessed = matchRawRepository.findAll().stream()
-                            .filter(m -> !m.isProcessed() && m.getRawJson() != null)
+                    List<MatchRaw> unprocessed = matchRawRepository.findByProcessedFalse().stream()
+                            .filter(m -> m.getRawJson() != null)
                             .toList();
 
                     Set<String> discoveredPuuids = new LinkedHashSet<>();

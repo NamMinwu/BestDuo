@@ -16,7 +16,7 @@ public interface SummonerPoolRepository extends JpaRepository<SummonerPool, Stri
 
     List<SummonerPool> findByTierInAndVerifiedTrue(List<String> tiers);
 
-    // 미검증(신규 BFS 발견) + 검증 만료(tierVerifiedAt이 cutoff보다 오래됨) 대상
-    @Query("SELECT s FROM SummonerPool s WHERE s.verified = false OR s.tierVerifiedAt < :cutoff")
+    // 미검증(신규 BFS 발견) + tierVerifiedAt 없음(래더에서 직접 수집) + 검증 만료
+    @Query("SELECT s FROM SummonerPool s WHERE s.verified = false OR s.tierVerifiedAt IS NULL OR s.tierVerifiedAt < :cutoff")
     List<SummonerPool> findNeedingVerification(@Param("cutoff") LocalDateTime cutoff);
 }

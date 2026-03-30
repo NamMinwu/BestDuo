@@ -2,6 +2,7 @@ package com.bestduo.domain.repository;
 
 import com.bestduo.domain.entity.DuoRanking;
 import com.bestduo.domain.entity.DuoRankingId;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,11 +12,13 @@ import java.util.Optional;
 
 public interface DuoRankingRepository extends JpaRepository<DuoRanking, DuoRankingId> {
 
-    List<DuoRanking> findByPatchAndTierOrderByRankPositionAsc(String patch, String tier);
-
-    List<DuoRanking> findByPatchAndTierOrderByWinRateDesc(String patch, String tier);
-
-    List<DuoRanking> findByPatchAndTierOrderByPickRateDesc(String patch, String tier);
+    @Query("SELECT d FROM DuoRanking d WHERE d.patch = :patch AND d.tier = :tier " +
+           "AND (:adcId IS NULL OR d.adcChampionId = :adcId) " +
+           "AND (:supportId IS NULL OR d.supportChampionId = :supportId)")
+    List<DuoRanking> findWithChampionFilter(
+            @Param("patch") String patch, @Param("tier") String tier,
+            @Param("adcId") Integer adcId, @Param("supportId") Integer supportId,
+            Sort sort);
 
     Optional<DuoRanking> findByPatchAndTierAndAdcChampionIdAndSupportChampionId(
             String patch, String tier, Integer adcChampionId, Integer supportChampionId);
