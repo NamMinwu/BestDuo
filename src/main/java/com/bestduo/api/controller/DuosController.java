@@ -31,12 +31,18 @@ public class DuosController {
             @RequestParam(defaultValue = "ALL") String tier,
 
             @Parameter(description = "정렬 기준", example = "RANK")
-            @RequestParam(defaultValue = "RANK") String sort) {
+            @RequestParam(defaultValue = "RANK") String sort,
+
+            @Parameter(description = "원딜 챔피언 ID 필터 (Riot champion key)", example = "222")
+            @RequestParam(required = false) Integer adc,
+
+            @Parameter(description = "서포터 챔피언 ID 필터 (Riot champion key)", example = "412")
+            @RequestParam(required = false) Integer support) {
 
         List<DuoRanking> rankings = switch (sort.toUpperCase()) {
-            case "WIN_RATE" -> duoRankingRepository.findByPatchAndTierOrderByWinRateDesc(patch, tier);
-            case "PICK_RATE" -> duoRankingRepository.findByPatchAndTierOrderByPickRateDesc(patch, tier);
-            default -> duoRankingRepository.findByPatchAndTierOrderByRankPositionAsc(patch, tier);
+            case "WIN_RATE" -> duoRankingRepository.findWithChampionFilterOrderByWinRateDesc(patch, tier, adc, support);
+            case "PICK_RATE" -> duoRankingRepository.findWithChampionFilterOrderByPickRateDesc(patch, tier, adc, support);
+            default -> duoRankingRepository.findWithChampionFilterOrderByRankPositionAsc(patch, tier, adc, support);
         };
 
         List<DuoRankingResponse.DuoRankingItem> items = rankings.stream()

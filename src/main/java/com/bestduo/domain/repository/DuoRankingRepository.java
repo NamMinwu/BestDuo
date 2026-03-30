@@ -17,6 +17,30 @@ public interface DuoRankingRepository extends JpaRepository<DuoRanking, DuoRanki
 
     List<DuoRanking> findByPatchAndTierOrderByPickRateDesc(String patch, String tier);
 
+    @Query("SELECT d FROM DuoRanking d WHERE d.patch = :patch AND d.tier = :tier " +
+           "AND (:adcId IS NULL OR d.adcChampionId = :adcId) " +
+           "AND (:supportId IS NULL OR d.supportChampionId = :supportId) " +
+           "ORDER BY d.rankPosition ASC")
+    List<DuoRanking> findWithChampionFilterOrderByRankPositionAsc(
+            @Param("patch") String patch, @Param("tier") String tier,
+            @Param("adcId") Integer adcId, @Param("supportId") Integer supportId);
+
+    @Query("SELECT d FROM DuoRanking d WHERE d.patch = :patch AND d.tier = :tier " +
+           "AND (:adcId IS NULL OR d.adcChampionId = :adcId) " +
+           "AND (:supportId IS NULL OR d.supportChampionId = :supportId) " +
+           "ORDER BY d.winRate DESC")
+    List<DuoRanking> findWithChampionFilterOrderByWinRateDesc(
+            @Param("patch") String patch, @Param("tier") String tier,
+            @Param("adcId") Integer adcId, @Param("supportId") Integer supportId);
+
+    @Query("SELECT d FROM DuoRanking d WHERE d.patch = :patch AND d.tier = :tier " +
+           "AND (:adcId IS NULL OR d.adcChampionId = :adcId) " +
+           "AND (:supportId IS NULL OR d.supportChampionId = :supportId) " +
+           "ORDER BY d.pickRate DESC")
+    List<DuoRanking> findWithChampionFilterOrderByPickRateDesc(
+            @Param("patch") String patch, @Param("tier") String tier,
+            @Param("adcId") Integer adcId, @Param("supportId") Integer supportId);
+
     Optional<DuoRanking> findByPatchAndTierAndAdcChampionIdAndSupportChampionId(
             String patch, String tier, Integer adcChampionId, Integer supportChampionId);
 
